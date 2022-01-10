@@ -26,8 +26,7 @@ namespace NIS_project.Models.Repositories
             }
             await context.Car.AddAsync(car);
             await context.SaveChangesAsync();
-            await _cache.SetAsync<Car>(car.Id.ToString(), car);
-            await _cache.RemoveAsync("AllCars");
+            await _cache.SetAsync<QueryCarDTO>(car.Id.ToString(), (QueryCarDTO)car);
             return (QueryCarDTO)car;
         }
 
@@ -40,7 +39,6 @@ namespace NIS_project.Models.Repositories
                 context.Car.Remove(car);
                 await context.SaveChangesAsync();
                 await _cache.RemoveAsync(car.Id.ToString());
-                await _cache.RemoveAsync("AllCars");
                 return true;
             }
             else
@@ -52,17 +50,8 @@ namespace NIS_project.Models.Repositories
 
         public async Task<IEnumerable<QueryCarDTO>> GetAll()
         {
-            var carsCache = await _cache.GetAsync<IEnumerable<QueryCarDTO>>("AllCars");
-            if (carsCache != null)
-            {
-                return carsCache;
-            }
-
             var context = _contextFactory.CreateDbContext();
             var cars = await context.Car.Include(x => x.Engine).Include(x => x.Owners).Include(x => x.Manufacturer).ToListAsync();
-
-            Console.WriteLine("not here: " + cars.First().ToString());
-            await _cache.SetAsync<IEnumerable<QueryCarDTO>>("AllCars", cars.Select(x => (QueryCarDTO)x).ToList());
             return cars.Select(x => (QueryCarDTO)x).ToList();
         }
 
@@ -88,6 +77,7 @@ namespace NIS_project.Models.Repositories
             dbCar.Name = car.Name;
             dbCar.Engine = car.Engine;
             dbCar.Owners = car.Owners;
+            dbCar.Price = car.Price;
             if (!await AttachDependenciesFromIds(dbCar, context))
             {
                 return null;
@@ -95,7 +85,6 @@ namespace NIS_project.Models.Repositories
             context.Update(dbCar);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryCarDTO>(dbCar.Id.ToString(), (QueryCarDTO)dbCar);
-            await _cache.RemoveAsync("AllCars");
             return (QueryCarDTO)dbCar;
         }
 

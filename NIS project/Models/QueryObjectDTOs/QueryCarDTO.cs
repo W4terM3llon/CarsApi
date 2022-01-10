@@ -17,7 +17,8 @@
                 Id = v.Id,
                 Name = v.Name,
                 Manufacturer = (QueryManufacturerDTO)v.Manufacturer,
-                Engine = (QueryEngineDTO)v.Engine
+                Engine = (QueryEngineDTO)v.Engine,
+                Price = v.Price
             };
         }
     }

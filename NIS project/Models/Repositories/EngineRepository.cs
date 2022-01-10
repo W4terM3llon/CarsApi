@@ -28,7 +28,6 @@ namespace NIS_project.Models.Repositories
             await context.Engine.AddAsync(engine);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryEngineDTO>(engine.Id.ToString(), (QueryEngineDTO)engine);
-            await _cache.RemoveAsync("AllEngines");
             return (QueryEngineDTO)engine;
         }
 
@@ -41,7 +40,6 @@ namespace NIS_project.Models.Repositories
                 context.Engine.Remove(engine);
                 await context.SaveChangesAsync();
                 await _cache.RemoveAsync(engine.Id.ToString());
-                await _cache.RemoveAsync("AllEngines");
                 return true;
             }
             else
@@ -54,16 +52,8 @@ namespace NIS_project.Models.Repositories
 
         public async Task<IEnumerable<QueryEngineDTO>> GetAll()
         {
-            var enginesCache = await _cache.GetAsync<IEnumerable<QueryEngineDTO>>("AllEngines");
-            if (enginesCache != null)
-            {
-                return enginesCache;
-            }
-
             var context = _contextFactory.CreateDbContext();
             var engines = await context.Engine.ToListAsync();
-            await context.SaveChangesAsync();
-            await _cache.SetAsync<IEnumerable<QueryEngineDTO>>("AllEngines", engines.Select(x => (QueryEngineDTO)x).ToList());
             return engines.Select(x => (QueryEngineDTO)x).ToList();
         }
 
@@ -77,7 +67,6 @@ namespace NIS_project.Models.Repositories
 
             var context = _contextFactory.CreateDbContext();
             var engine = await context.Engine.Include(x => x.Manufacturer).FirstOrDefaultAsync(x => x.Id == id);
-            await context.SaveChangesAsync();
             await _cache.SetAsync<QueryEngineDTO>(engine.Id.ToString(), (QueryEngineDTO)engine);
             return (QueryEngineDTO)engine;
         }
@@ -96,7 +85,6 @@ namespace NIS_project.Models.Repositories
             context.Update(dbEngine);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryEngineDTO>(dbEngine.Id.ToString(), (QueryEngineDTO)dbEngine);
-            await _cache.RemoveAsync("AllEngines");
             return (QueryEngineDTO)dbEngine;
         }
 

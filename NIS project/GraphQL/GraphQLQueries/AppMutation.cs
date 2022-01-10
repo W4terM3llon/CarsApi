@@ -48,7 +48,7 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 "DeleteCar",
                 arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
-                    var carGuid = context.GetArgument<Guid>("id");
+                    var carGuid = context.GetArgument<Guid>("Id");
                     if (!await carRepository.Delete(carGuid))
                     {
                         throw new ExecutionError("Engine with this id does not exist");
@@ -94,7 +94,7 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 "DeleteEngine",
                 arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
-                    var engineGuid = context.GetArgument<Guid>("Engine");
+                    var engineGuid = context.GetArgument<Guid>("Id");
                     if (!await engineRepository.Delete(engineGuid))
                     {
                         throw new ExecutionError("Engine with this id does not exist");
@@ -140,7 +140,7 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 "DeleteManufacturer",
                 arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
-                    var manufacturerGuid = context.GetArgument<Guid>("Manufacturer");
+                    var manufacturerGuid = context.GetArgument<Guid>("Id");
                     if (!await manufacturerRepository.Delete(manufacturerGuid))
                     {
                         throw new ExecutionError("Manufacturer with this id does not exist");
@@ -186,7 +186,7 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 "DeleteOwner",
                 arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
-                    var ownerGuid = context.GetArgument<Guid>("Owner");
+                    var ownerGuid = context.GetArgument<Guid>("Id");
                     if (!await ownerRepository.Delete(ownerGuid))
                     {
                         throw new ExecutionError("Owner with this id does not exist");

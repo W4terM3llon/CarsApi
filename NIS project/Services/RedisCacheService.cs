@@ -46,14 +46,6 @@ namespace NIS_project.Services
         public async Task RemoveAsync(string key) 
         {
             _cache.Remove(key);
-
-            //Because of lack of time this id how cache is updated
-            //This method is called by Create() and Update() repository methods as well in
-            //order to remove old data
-            _cache.Remove("AllCars");
-            _cache.Remove("AllOwners");
-            _cache.Remove("AllEngines");
-            _cache.Remove("AllManufacturers");
         }
     }
 }

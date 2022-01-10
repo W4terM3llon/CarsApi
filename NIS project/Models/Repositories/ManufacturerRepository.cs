@@ -28,7 +28,6 @@ namespace NIS_project.Models.Repositories
             await context.Manufacturer.AddAsync(manufacturer);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryManufacturerDTO>(manufacturer.Id.ToString(), (QueryManufacturerDTO)manufacturer);
-            await _cache.RemoveAsync("AllManufacturers");
             return (QueryManufacturerDTO)manufacturer;
         }
 
@@ -41,7 +40,6 @@ namespace NIS_project.Models.Repositories
                 context.Manufacturer.Remove(manufacturer);
                 await context.SaveChangesAsync();
                 await _cache.RemoveAsync(manufacturer.Id.ToString());
-                await _cache.RemoveAsync("AllManufacturers");
                 return true;
             }
             else
@@ -52,16 +50,8 @@ namespace NIS_project.Models.Repositories
 
         public async Task<IEnumerable<QueryManufacturerDTO>> GetAll()
         {
-            var manufacturersCache = await _cache.GetAsync<IEnumerable<QueryManufacturerDTO>>("AllEngines");
-            if (manufacturersCache != null)
-            {
-                return manufacturersCache;
-            }
-
             var context = _contextFactory.CreateDbContext();
             var manufacturers = await context.Manufacturer.ToListAsync();
-            await context.SaveChangesAsync();
-            await _cache.SetAsync<IEnumerable<QueryManufacturerDTO>>("AllManufacturers", manufacturers.Select(x => (QueryManufacturerDTO)x).ToList());
             return manufacturers.Select(x => (QueryManufacturerDTO)x).ToList();
         }
 
@@ -75,7 +65,6 @@ namespace NIS_project.Models.Repositories
 
             var context = _contextFactory.CreateDbContext();
             var manufacturer = await context.Manufacturer.FirstOrDefaultAsync(x => x.Id == id);
-            await context.SaveChangesAsync();
             await _cache.SetAsync<QueryManufacturerDTO>(manufacturer.Id.ToString(), (QueryManufacturerDTO)manufacturer);
             return (QueryManufacturerDTO)manufacturer;
         }
@@ -95,7 +84,6 @@ namespace NIS_project.Models.Repositories
             context.Update(dbManufacturer);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryManufacturerDTO>(dbManufacturer.Id.ToString(), (QueryManufacturerDTO)dbManufacturer);
-            await _cache.RemoveAsync("AllManufacturers");
             return (QueryManufacturerDTO)dbManufacturer;
         }
 

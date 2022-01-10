@@ -28,7 +28,6 @@ namespace NIS_project.Models.Repositories
             await context.Owner.AddAsync(owner);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryOwnerDTO>(owner.Id.ToString(), (QueryOwnerDTO)owner);
-            await _cache.RemoveAsync("AllOwners");
             return (QueryOwnerDTO)owner;
         }
 
@@ -41,7 +40,6 @@ namespace NIS_project.Models.Repositories
                 context.Owner.Remove(owner);
                 await context.SaveChangesAsync();
                 await _cache.RemoveAsync(owner.Id.ToString());
-                await _cache.RemoveAsync("AllOwners");
                 return true;
             }
             else {
@@ -52,16 +50,8 @@ namespace NIS_project.Models.Repositories
 
         public async Task<IEnumerable<QueryOwnerDTO>> GetAll()
         {
-            var ownerCache = await _cache.GetAsync<IEnumerable<QueryOwnerDTO>>("AllOwners");
-            if (ownerCache != null)
-            {
-                return ownerCache;
-            }
-
             var context = _contextFactory.CreateDbContext();
             var owners = await context.Owner.ToListAsync();
-            await context.SaveChangesAsync();
-            await _cache.SetAsync<IEnumerable<QueryOwnerDTO>>("AllOwners", owners.Select(x => (QueryOwnerDTO)x).ToList());
             return owners.Select(x => (QueryOwnerDTO)x).ToList();
         }
 
@@ -75,7 +65,6 @@ namespace NIS_project.Models.Repositories
 
             var context = _contextFactory.CreateDbContext();
             var owner = await context.Owner.FirstOrDefaultAsync(x => x.Id == id);
-            await context.SaveChangesAsync();
             await _cache.SetAsync<QueryOwnerDTO>(owner.Id.ToString(), (QueryOwnerDTO)owner);
             return (QueryOwnerDTO)owner;
         }
@@ -95,7 +84,6 @@ namespace NIS_project.Models.Repositories
             context.Update(dbOwner);
             await context.SaveChangesAsync();
             await _cache.SetAsync<QueryOwnerDTO>(dbOwner.Id.ToString(), (QueryOwnerDTO)dbOwner);
-            await _cache.RemoveAsync("AllOwners");
             return (QueryOwnerDTO)dbOwner;
         }
 
