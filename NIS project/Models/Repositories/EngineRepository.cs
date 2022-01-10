@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NIS_project.Data;
 using NIS_project.Models.AlterObjectDTOs;
+using NIS_project.Models.QueryObjectDTOs;
+using NIS_project.Services;
 using System.Collections;
 
 namespace NIS_project.Models.Repositories
@@ -8,12 +10,14 @@ namespace NIS_project.Models.Repositories
     public class EngineRepository : IEngineRepository
     {
         private readonly IDbContextFactory<NIS_projectContext> _contextFactory;
-        public EngineRepository(IDbContextFactory<NIS_projectContext> contextFactory)
+        private readonly IRedisCacheService _cache;
+        public EngineRepository(IDbContextFactory<NIS_projectContext> contextFactory, IRedisCacheService cache)
         {
             _contextFactory = contextFactory;
+            _cache = cache;
         }
 
-        public async Task<Engine> Create(Engine engine)
+        public async Task<QueryEngineDTO> Create(Engine engine)
         {
             var context = _contextFactory.CreateDbContext();
             engine.Id = Guid.NewGuid();
@@ -21,11 +25,11 @@ namespace NIS_project.Models.Repositories
             {
                 return null;
             }
-            Console.WriteLine( " Just checking: " + context.Manufacturer.Any(x => x.DbId == engine.Manufacturer.DbId));
-            Console.WriteLine(" Object 2 code: " + context.Manufacturer.FirstOrDefault(x => x.DbId == engine.Manufacturer.DbId).GetHashCode());
             await context.Engine.AddAsync(engine);
             await context.SaveChangesAsync();
-            return engine;
+            await _cache.SetAsync<QueryEngineDTO>(engine.Id.ToString(), (QueryEngineDTO)engine);
+            await _cache.RemoveAsync("AllEngines");
+            return (QueryEngineDTO)engine;
         }
 
         public async Task<bool> Delete(Guid engineGuid)
@@ -36,6 +40,8 @@ namespace NIS_project.Models.Repositories
             {
                 context.Engine.Remove(engine);
                 await context.SaveChangesAsync();
+                await _cache.RemoveAsync(engine.Id.ToString());
+                await _cache.RemoveAsync("AllEngines");
                 return true;
             }
             else
@@ -46,32 +52,52 @@ namespace NIS_project.Models.Repositories
 
         }
 
-        public async Task<IEnumerable> GetAll()
+        public async Task<IEnumerable<QueryEngineDTO>> GetAll()
         {
+            var enginesCache = await _cache.GetAsync<IEnumerable<QueryEngineDTO>>("AllEngines");
+            if (enginesCache != null)
+            {
+                return enginesCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var engines = await context.Engine.ToListAsync();
             await context.SaveChangesAsync();
-            return engines;
+            await _cache.SetAsync<IEnumerable<QueryEngineDTO>>("AllEngines", engines.Select(x => (QueryEngineDTO)x).ToList());
+            return engines.Select(x => (QueryEngineDTO)x).ToList();
         }
 
-        public async Task<Engine> GetById(Guid id) 
+        public async Task<QueryEngineDTO> GetById(Guid id) 
         {
+            var engineCache = await _cache.GetAsync<QueryEngineDTO>(id.ToString());
+            if (engineCache != null)
+            {
+                return engineCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var engine = await context.Engine.Include(x => x.Manufacturer).FirstOrDefaultAsync(x => x.Id == id);
             await context.SaveChangesAsync();
-            return engine;
+            await _cache.SetAsync<QueryEngineDTO>(engine.Id.ToString(), (QueryEngineDTO)engine);
+            return (QueryEngineDTO)engine;
         }
 
-        public async Task<Engine> Update(Engine engine)
+        public async Task<QueryEngineDTO> Update(Engine engine)
         {
             var context = _contextFactory.CreateDbContext();
-            if (!await AttachDependenciesFromIds(engine, context))
+            var dbEngine = await context.Engine.FirstOrDefaultAsync(x => x.Id == engine.Id);
+            dbEngine.Manufacturer = dbEngine.Manufacturer;
+            dbEngine.Type = dbEngine.Type;
+            dbEngine.HP = dbEngine.HP;
+            if (!await AttachDependenciesFromIds(dbEngine, context))
             {
                 return null;
             }
-            context.Update(engine);
+            context.Update(dbEngine);
             await context.SaveChangesAsync();
-            return engine;
+            await _cache.SetAsync<QueryEngineDTO>(dbEngine.Id.ToString(), (QueryEngineDTO)dbEngine);
+            await _cache.RemoveAsync("AllEngines");
+            return (QueryEngineDTO)dbEngine;
         }
 
         public async Task<bool> IfExists(Guid id)

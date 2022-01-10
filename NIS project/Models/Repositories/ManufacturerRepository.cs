@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NIS_project.Data;
 using NIS_project.Models.AlterObjectDTOs;
+using NIS_project.Models.QueryObjectDTOs;
+using NIS_project.Services;
 using System.Collections;
 
 namespace NIS_project.Models.Repositories
@@ -8,12 +10,14 @@ namespace NIS_project.Models.Repositories
     public class ManufacturerRepository : IManufacturerRepository
     {
         private readonly IDbContextFactory<NIS_projectContext> _contextFactory;
-        public ManufacturerRepository(IDbContextFactory<NIS_projectContext> contextFactory)
+        private readonly IRedisCacheService _cache;
+        public ManufacturerRepository(IDbContextFactory<NIS_projectContext> contextFactory, IRedisCacheService cache)
         {
             _contextFactory = contextFactory;
+            _cache = cache;
         }
 
-        public async Task<Manufacturer> Create(Manufacturer manufacturer)
+        public async Task<QueryManufacturerDTO> Create(Manufacturer manufacturer)
         {
             var context = _contextFactory.CreateDbContext();
             manufacturer.Id = Guid.NewGuid();
@@ -23,7 +27,9 @@ namespace NIS_project.Models.Repositories
             }
             await context.Manufacturer.AddAsync(manufacturer);
             await context.SaveChangesAsync();
-            return manufacturer;
+            await _cache.SetAsync<QueryManufacturerDTO>(manufacturer.Id.ToString(), (QueryManufacturerDTO)manufacturer);
+            await _cache.RemoveAsync("AllManufacturers");
+            return (QueryManufacturerDTO)manufacturer;
         }
 
         public async Task<bool> Delete(Guid manufacturerGuid)
@@ -34,6 +40,8 @@ namespace NIS_project.Models.Repositories
             {
                 context.Manufacturer.Remove(manufacturer);
                 await context.SaveChangesAsync();
+                await _cache.RemoveAsync(manufacturer.Id.ToString());
+                await _cache.RemoveAsync("AllManufacturers");
                 return true;
             }
             else
@@ -42,32 +50,53 @@ namespace NIS_project.Models.Repositories
             }
         }
 
-        public async Task<IEnumerable> GetAll()
+        public async Task<IEnumerable<QueryManufacturerDTO>> GetAll()
         {
+            var manufacturersCache = await _cache.GetAsync<IEnumerable<QueryManufacturerDTO>>("AllEngines");
+            if (manufacturersCache != null)
+            {
+                return manufacturersCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var manufacturers = await context.Manufacturer.ToListAsync();
             await context.SaveChangesAsync();
-            return manufacturers;
+            await _cache.SetAsync<IEnumerable<QueryManufacturerDTO>>("AllManufacturers", manufacturers.Select(x => (QueryManufacturerDTO)x).ToList());
+            return manufacturers.Select(x => (QueryManufacturerDTO)x).ToList();
         }
 
-        public async Task<Manufacturer> GetById(Guid id)
+        public async Task<QueryManufacturerDTO> GetById(Guid id)
         {
+            var manufacturerCache = await _cache.GetAsync<QueryManufacturerDTO>(id.ToString());
+            if (manufacturerCache != null)
+            {
+                return manufacturerCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var manufacturer = await context.Manufacturer.FirstOrDefaultAsync(x => x.Id == id);
             await context.SaveChangesAsync();
-            return manufacturer;
+            await _cache.SetAsync<QueryManufacturerDTO>(manufacturer.Id.ToString(), (QueryManufacturerDTO)manufacturer);
+            return (QueryManufacturerDTO)manufacturer;
         }
 
-        public async Task<Manufacturer> Update(Manufacturer manufacturer)
+        public async Task<QueryManufacturerDTO> Update(Manufacturer manufacturer)
         {
             var context = _contextFactory.CreateDbContext();
-            if (!await AttachDependenciesFromIds(manufacturer, context))
+            var dbManufacturer = await context.Manufacturer.FirstOrDefaultAsync(x => x.Id == manufacturer.Id);
+            dbManufacturer.Engines = manufacturer.Engines;
+            dbManufacturer.Name = manufacturer.Name;
+            dbManufacturer.Cars = manufacturer.Cars;
+            dbManufacturer.Since = manufacturer.Since;
+            if (!await AttachDependenciesFromIds(dbManufacturer, context))
             {
                 return null;
             }
-            context.Update(manufacturer);
+            context.Update(dbManufacturer);
             await context.SaveChangesAsync();
-            return manufacturer;
+            await _cache.SetAsync<QueryManufacturerDTO>(dbManufacturer.Id.ToString(), (QueryManufacturerDTO)dbManufacturer);
+            await _cache.RemoveAsync("AllManufacturers");
+            return (QueryManufacturerDTO)dbManufacturer;
         }
 
         public async Task<bool> IfExists(Guid id) 

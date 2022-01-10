@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NIS_project.Data;
 using NIS_project.Models.AlterObjectDTOs;
+using NIS_project.Models.QueryObjectDTOs;
+using NIS_project.Services;
 using System.Collections;
 
 namespace NIS_project.Models.Repositories
@@ -8,12 +10,14 @@ namespace NIS_project.Models.Repositories
     public class OwnerRepository : IOwnerRepository
     {
         private readonly IDbContextFactory<NIS_projectContext> _contextFactory;
-        public OwnerRepository(IDbContextFactory<NIS_projectContext> contextFactory)
+        private readonly IRedisCacheService _cache;
+        public OwnerRepository(IDbContextFactory<NIS_projectContext> contextFactory, IRedisCacheService cache)
         {
             _contextFactory = contextFactory;
+            _cache = cache;
         }
 
-        public async Task<Owner> Create(Owner owner)
+        public async Task<QueryOwnerDTO> Create(Owner owner)
         {
             var context = _contextFactory.CreateDbContext();
             owner.Id = Guid.NewGuid();
@@ -23,7 +27,9 @@ namespace NIS_project.Models.Repositories
             }
             await context.Owner.AddAsync(owner);
             await context.SaveChangesAsync();
-            return owner;
+            await _cache.SetAsync<QueryOwnerDTO>(owner.Id.ToString(), (QueryOwnerDTO)owner);
+            await _cache.RemoveAsync("AllOwners");
+            return (QueryOwnerDTO)owner;
         }
 
         public async Task<bool> Delete(Guid ownerGuid)
@@ -34,6 +40,8 @@ namespace NIS_project.Models.Repositories
             {
                 context.Owner.Remove(owner);
                 await context.SaveChangesAsync();
+                await _cache.RemoveAsync(owner.Id.ToString());
+                await _cache.RemoveAsync("AllOwners");
                 return true;
             }
             else {
@@ -42,32 +50,53 @@ namespace NIS_project.Models.Repositories
 
         }
 
-        public async Task<IEnumerable> GetAll()
+        public async Task<IEnumerable<QueryOwnerDTO>> GetAll()
         {
+            var ownerCache = await _cache.GetAsync<IEnumerable<QueryOwnerDTO>>("AllOwners");
+            if (ownerCache != null)
+            {
+                return ownerCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var owners = await context.Owner.ToListAsync();
             await context.SaveChangesAsync();
-            return owners;
+            await _cache.SetAsync<IEnumerable<QueryOwnerDTO>>("AllOwners", owners.Select(x => (QueryOwnerDTO)x).ToList());
+            return owners.Select(x => (QueryOwnerDTO)x).ToList();
         }
 
-        public async Task<Owner> GetById(Guid id)
+        public async Task<QueryOwnerDTO> GetById(Guid id)
         {
+            var ownerCache = await _cache.GetAsync<QueryOwnerDTO>(id.ToString());
+            if (ownerCache != null)
+            {
+                return ownerCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var owner = await context.Owner.FirstOrDefaultAsync(x => x.Id == id);
             await context.SaveChangesAsync();
-            return owner;
+            await _cache.SetAsync<QueryOwnerDTO>(owner.Id.ToString(), (QueryOwnerDTO)owner);
+            return (QueryOwnerDTO)owner;
         }
 
-        public async Task<Owner> Update(Owner owner)
+        public async Task<QueryOwnerDTO> Update(Owner owner)
         {
             var context = _contextFactory.CreateDbContext();
-            if (!await AttachDependenciesFromIds(owner, context))
+            var dbOwner = await context.Owner.FirstOrDefaultAsync(x => x.Id == owner.Id);
+            dbOwner.FirstName = owner.FirstName;
+            dbOwner.LastName = owner.LastName;
+            dbOwner.Age = owner.Age;
+            dbOwner.Cars = owner.Cars;
+            if (!await AttachDependenciesFromIds(dbOwner, context))
             {
                 return null;
             }
-            context.Update(owner);
+            context.Update(dbOwner);
             await context.SaveChangesAsync();
-            return owner;
+            await _cache.SetAsync<QueryOwnerDTO>(dbOwner.Id.ToString(), (QueryOwnerDTO)dbOwner);
+            await _cache.RemoveAsync("AllOwners");
+            return (QueryOwnerDTO)dbOwner;
         }
 
         public async Task<bool> IfExists(Guid id)

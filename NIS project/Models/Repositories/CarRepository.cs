@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NIS_project.Data;
 using NIS_project.Models.AlterObjectDTOs;
+using NIS_project.Models.QueryObjectDTOs;
+using NIS_project.Services;
 using System.Collections;
 
 namespace NIS_project.Models.Repositories
@@ -8,11 +10,13 @@ namespace NIS_project.Models.Repositories
     public class CarRepository : ICarRepository
     {
         private readonly IDbContextFactory<NIS_projectContext> _contextFactory;
-        public CarRepository(IDbContextFactory<NIS_projectContext> contextFactory) {
+        private readonly IRedisCacheService _cache;
+        public CarRepository(IDbContextFactory<NIS_projectContext> contextFactory, IRedisCacheService cache) {
             _contextFactory = contextFactory;
+            _cache = cache;
         }
 
-        public async Task<Car> Create(Car car)
+        public async Task<QueryCarDTO> Create(Car car)
         {
             var context = _contextFactory.CreateDbContext();
             car.Id = Guid.NewGuid();
@@ -22,7 +26,9 @@ namespace NIS_project.Models.Repositories
             }
             await context.Car.AddAsync(car);
             await context.SaveChangesAsync();
-            return car;
+            await _cache.SetAsync<Car>(car.Id.ToString(), car);
+            await _cache.RemoveAsync("AllCars");
+            return (QueryCarDTO)car;
         }
 
         public async Task<bool> Delete(Guid carGuid)
@@ -33,6 +39,8 @@ namespace NIS_project.Models.Repositories
             {
                 context.Car.Remove(car);
                 await context.SaveChangesAsync();
+                await _cache.RemoveAsync(car.Id.ToString());
+                await _cache.RemoveAsync("AllCars");
                 return true;
             }
             else
@@ -42,32 +50,53 @@ namespace NIS_project.Models.Repositories
 
         }
 
-        public async Task<IEnumerable> GetAll()
+        public async Task<IEnumerable<QueryCarDTO>> GetAll()
         {
+            var carsCache = await _cache.GetAsync<IEnumerable<QueryCarDTO>>("AllCars");
+            if (carsCache != null)
+            {
+                return carsCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
-            var cars = await context.Car.Include(x => x.Manufacturer).Include(x => x.Engine).ToListAsync();
-            await context.SaveChangesAsync();
-            return cars;
+            var cars = await context.Car.Include(x => x.Engine).Include(x => x.Owners).Include(x => x.Manufacturer).ToListAsync();
+
+            Console.WriteLine("not here: " + cars.First().ToString());
+            await _cache.SetAsync<IEnumerable<QueryCarDTO>>("AllCars", cars.Select(x => (QueryCarDTO)x).ToList());
+            return cars.Select(x => (QueryCarDTO)x).ToList();
         }
 
-        public async Task<Car> GetById(Guid id)
+        public async Task<QueryCarDTO> GetById(Guid id)
         {
+            var carCache = await _cache.GetAsync<QueryCarDTO>(id.ToString());
+            if (carCache != null)
+            {
+                return carCache;
+            }
+
             var context = _contextFactory.CreateDbContext();
             var car = await context.Car.Include(x => x.Manufacturer).Include(x => x.Engine).FirstOrDefaultAsync(x => x.Id == id);
-            await context.SaveChangesAsync();
-            return car;
+            await _cache.SetAsync<QueryCarDTO>(car.Id.ToString(), (QueryCarDTO)car);
+            return (QueryCarDTO)car;
         }
 
-        public async Task<Car> Update(Car car)
+        public async Task<QueryCarDTO> Update(Car car)
         {
             var context = _contextFactory.CreateDbContext();
-            if (!await AttachDependenciesFromIds(car, context))
+            var dbCar = await context.Car.FirstOrDefaultAsync(x => x.Id == car.Id);
+            dbCar.Manufacturer = car.Manufacturer;
+            dbCar.Name = car.Name;
+            dbCar.Engine = car.Engine;
+            dbCar.Owners = car.Owners;
+            if (!await AttachDependenciesFromIds(dbCar, context))
             {
                 return null;
             }
-            context.Update(car);
+            context.Update(dbCar);
             await context.SaveChangesAsync();
-            return car;
+            await _cache.SetAsync<QueryCarDTO>(dbCar.Id.ToString(), (QueryCarDTO)dbCar);
+            await _cache.RemoveAsync("AllCars");
+            return (QueryCarDTO)dbCar;
         }
 
         public async Task<bool> IfExists(Guid id)

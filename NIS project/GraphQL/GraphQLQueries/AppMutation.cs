@@ -27,9 +27,10 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 );
             FieldAsync<CarType>(
                 "UpdateCar",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<CarInputType>> { Name = "Car" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<IdGraphType>> { Name = "Id" }, new QueryArgument<NonNullGraphType<CarInputType>> { Name = "Car" }),
                 resolve: async context => {
                     var carDTO = context.GetArgument<AlterCarDTO>("Car");
+                    carDTO.Id = context.GetArgument<Guid>("Id");
                     if (!await carRepository.IfExists(carDTO.Id)) 
                     {
                         throw new ExecutionError("Car with this id does not exist");
@@ -43,11 +44,11 @@ namespace NIS_project.GraphQL.GraphQLQueries
                     return car;
                 }
                 );
-            FieldAsync<CarType>(
+            FieldAsync<BooleanGraphType>(
                 "DeleteCar",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<DeleteInputType>> { Name = "Car" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
-                    var carGuid = context.GetArgument<Guid>("Car");
+                    var carGuid = context.GetArgument<Guid>("id");
                     if (!await carRepository.Delete(carGuid))
                     {
                         throw new ExecutionError("Engine with this id does not exist");
@@ -72,9 +73,10 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 );
             FieldAsync<EngineType>(
                 "UpdatEngine",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<EngineInputType>> { Name = "Engine" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<IdGraphType>> { Name = "Id" }, new QueryArgument<NonNullGraphType<EngineInputType>> { Name = "Engine" }),
                 resolve: async context => {
                     var engineDTO = context.GetArgument<AlterEngineDTO>("Engine");
+                    engineDTO.Id = context.GetArgument<Guid>("Id");
                     if (!await engineRepository.IfExists(engineDTO.Id))
                     {
                         throw new ExecutionError("Engine with this id does not exist");
@@ -88,9 +90,9 @@ namespace NIS_project.GraphQL.GraphQLQueries
                     return engine;
                 }
                 );
-            FieldAsync<EngineType>(
+            FieldAsync<BooleanGraphType>(
                 "DeleteEngine",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<DeleteInputType>> { Name = "Engine" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
                     var engineGuid = context.GetArgument<Guid>("Engine");
                     if (!await engineRepository.Delete(engineGuid))
@@ -117,10 +119,11 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 );
             FieldAsync<ManufacturerType>(
                 "UpdateManufacturer",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<ManufacturerInputType>> { Name = "Manufacturer" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<IdGraphType>> { Name = "Id" }, new QueryArgument<NonNullGraphType<ManufacturerInputType>> { Name = "Manufacturer" }),
                 resolve: async context => {
                     var manufacturerarDTO = context.GetArgument<AlterManufacturerDTO>("Manufacturer");
-                    if (!await engineRepository.IfExists(manufacturerarDTO.Id))
+                    manufacturerarDTO.Id = context.GetArgument<Guid>("Id");
+                    if (!await manufacturerRepository.IfExists(manufacturerarDTO.Id))
                     {
                         throw new ExecutionError("Manufacturer with this id does not exist");
                     }
@@ -133,9 +136,9 @@ namespace NIS_project.GraphQL.GraphQLQueries
                     return manufacturer;
                 }
                 );
-            FieldAsync<CarType>(
+            FieldAsync<BooleanGraphType>(
                 "DeleteManufacturer",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<DeleteInputType>> { Name = "Manufacturer" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
                     var manufacturerGuid = context.GetArgument<Guid>("Manufacturer");
                     if (!await manufacturerRepository.Delete(manufacturerGuid))
@@ -162,9 +165,10 @@ namespace NIS_project.GraphQL.GraphQLQueries
                 );
             FieldAsync<OwnerType>(
                 "UpdateOwner",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<OwnerInputType>> { Name = "Owner" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<IdGraphType>> { Name = "Id" }, new QueryArgument<NonNullGraphType<OwnerInputType>> { Name = "Owner" }),
                 resolve: async context => {
                     var ownerDTO = context.GetArgument<AlterOwnerDTO>("Owner");
+                    ownerDTO.Id = context.GetArgument<Guid>("Id");
                     if (!await ownerRepository.IfExists(ownerDTO.Id))
                     {
                         throw new ExecutionError("Owner with this id does not exist");
@@ -178,9 +182,9 @@ namespace NIS_project.GraphQL.GraphQLQueries
                     return owner;
                 }
                 );
-            FieldAsync<OwnerType>(
+            FieldAsync<BooleanGraphType>(
                 "DeleteOwner",
-                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<DeleteInputType>> { Name = "Owner" }),
+                arguments: new QueryArguments(new QueryArgument<NonNullGraphType<StringGraphType>> { Name = "Id" }),
                 resolve: async context => {
                     var ownerGuid = context.GetArgument<Guid>("Owner");
                     if (!await ownerRepository.Delete(ownerGuid))

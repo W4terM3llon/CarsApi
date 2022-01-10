@@ -1,9 +1,10 @@
 ﻿using GraphQL.Types;
 using NIS_project.Models;
+using NIS_project.Models.QueryObjectDTOs;
 
 namespace NIS_project.GraphQL.GraphQLTypes
 {
-    public class OwnerType : ObjectGraphType<Owner>
+    public class OwnerType : ObjectGraphType<QueryOwnerDTO>
     {
         public OwnerType()
         {
